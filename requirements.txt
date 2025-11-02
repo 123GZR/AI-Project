@@ -1,0 +1,6 @@
+llama-index==0.12.32
+openai==1.68.2
+python-dotenv==1.0.0
+nest-asyncio==1.5.8
+pyautogui==0.9.54
+opencv-python==4.9.0.80
