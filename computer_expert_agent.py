@@ -14,52 +14,6 @@ def debug_print(message):
     if DEBUG_MODE:
         print(f"[调试] {message}")
 
-from tools.windows_tools import (
-    get_system_info,
-    open_windows_tool,
-    get_running_processes,
-    check_disk_space,
-    find_file,
-    show_windows_version
-)
-from tools.file_operations import (
-    create_folder,
-    delete_file,
-    copy_file,
-    move_file,
-    read_text_file as read_file,
-    create_text_file as write_file,
-    list_directory
-)
-from tools.mouse_keyboard_tools import (
-    get_mouse_position,
-    move_mouse,
-    move_mouse_relative,
-    click_mouse,
-    right_click_mouse,
-    double_click_mouse,
-    drag_mouse,
-    press_key,
-    type_text,
-    hotkey,
-    scroll_mouse,
-    safe_click_sequence,
-    safe_type_and_click
-)
-from tools.visual_tools import (
-    get_screen_size,
-    take_screenshot,
-    locate_on_screen,
-    locate_all_on_screen,
-    wait_for_image,
-    click_on_image,
-    wait_and_click_image,
-    capture_screen_region,
-    find_text_on_screen,
-    get_screen_color_at,
-    wait_for_color_change
-)
-
 # 加载环境变量
 load_dotenv()
 
@@ -77,64 +31,14 @@ llm = OpenAI(
     api_base=QWEN_API_BASE,
 )
 
-# 导入工具函数
-from tools.file_operations import read_tutorial, get_desktop_path
+# 从tools包导入所有工具
+from tools import ALL_TOOLS
 
 # 创建电脑操作专家智能体
 computer_expert_agent = FunctionAgent(
     name="computer_expert_agent",
     description="电脑操作专家，擅长指导用户按照步骤完成各种电脑操作任务，可调用Windows工具和教程。",
-    tools=[
-        # 文件操作工具（包括实用工具）
-        get_desktop_path,
-        # Windows系统工具
-        get_system_info,
-        open_windows_tool,
-        get_running_processes,
-        check_disk_space,
-        find_file,
-        show_windows_version,
-        
-        # 文件操作工具
-        create_folder,
-        delete_file,
-        copy_file,
-        move_file,
-        read_file,
-        write_file,
-        list_directory,
-        
-        # 教程工具
-        read_tutorial,
-        
-        # 鼠标键盘控制工具
-        get_mouse_position,
-        move_mouse,
-        move_mouse_relative,
-        click_mouse,
-        right_click_mouse,
-        double_click_mouse,
-        drag_mouse,
-        press_key,
-        type_text,
-        hotkey,
-        scroll_mouse,
-        safe_click_sequence,
-        safe_type_and_click,
-        
-        # 视觉工具
-        get_screen_size,
-        take_screenshot,
-        locate_on_screen,
-        locate_all_on_screen,
-        wait_for_image,
-        click_on_image,
-        wait_and_click_image,
-        capture_screen_region,
-        find_text_on_screen,
-        get_screen_color_at,
-        wait_for_color_change
-    ],
+    tools=ALL_TOOLS,
     llm=llm,
     system_prompt="""你是一位电脑操作专家，擅长指导用户按照步骤完成各种电脑操作任务。
 
@@ -211,6 +115,9 @@ async def run_computer_expert_agent_stream(prompt, ctx=None):
             async for event in handler.stream_events():
                 event_count += 1
                 debug_print(f"收到事件 #{event_count}: {type(event).__name__}")
+                debug_print(f"事件内容: {event}")
+                
+                # 处理不同类型的事件
                 if isinstance(event, AgentStream):
                     # 实时打印每个token
                     print(event.delta, end="", flush=True)
@@ -218,12 +125,23 @@ async def run_computer_expert_agent_stream(prompt, ctx=None):
                     # 每10个事件强制刷新一次
                     if event_count % 10 == 0:
                         debug_print(f"已处理 {event_count} 个事件")
+                elif hasattr(event, 'message'):
+                    # 处理包含message属性的事件
+                    message_content = event.message
+                    print(message_content, end="", flush=True)
+                    full_response += message_content
+                elif hasattr(event, 'content'):
+                    # 处理包含content属性的事件
+                    print(event.content, end="", flush=True)
+                    full_response += event.content
         except asyncio.TimeoutError:
             debug_print("流式处理超时")
         except StopAsyncIteration:
             debug_print("流式处理正常结束")
         except Exception as stream_e:
             debug_print(f"流式处理异常: {stream_e}")
+            import traceback
+            traceback.print_exc()
         
         print()  # 添加一个换行符
         debug_print(f"完整响应长度: {len(full_response)} 字符")
@@ -290,9 +208,9 @@ async def interactive_chat():
                 print("\nAI助手回复：")
                 try:
                     # 调用智能体处理用户请求并流式输出，设置60秒超时
-                    await asyncio.wait_for(
+                    assistant_response = await asyncio.wait_for(
                         run_computer_expert_agent_stream(user_input, ctx=ctx), 
-                        timeout=60.0
+                        timeout=180.0
                     )
                 except asyncio.TimeoutError:
                     print("\n\n[错误] 对话处理超时！请尝试简化问题。")
@@ -302,7 +220,7 @@ async def interactive_chat():
                     continue
 
                 # 添加助手回复到消息列表
-                messages.append({"role": "assistant", "content": "[助手回复内容]"})
+                messages.append({"role": "assistant", "content": assistant_response})
 
             except Exception as e:
                 print(f"\n[错误] 处理输入时发生错误: {str(e)}")
@@ -326,6 +244,8 @@ async def interactive_chat():
 async def main():
     # 检查命令行参数是否包含调试模式
     global DEBUG_MODE
+    
+    # 处理命令行参数
     if len(sys.argv) > 1:
         if '--debug' in sys.argv:
             DEBUG_MODE = True
@@ -335,17 +255,26 @@ async def main():
             print("  python computer_expert_agent.py              # 正常模式启动")
             print("  python computer_expert_agent.py --debug      # 开启调试模式启动")
             print("  python computer_expert_agent.py --help       # 显示帮助信息")
+            print("  python computer_expert_agent.py '问题'       # 直接回答指定问题")
             return
     
-    print("=== 电脑操作专家AI助手 ===")
-    print("功能：提供电脑操作指导、故障排除和软件安装配置等服务")
-    print("注意：本助手仅支持Windows系统操作")
-    print("输入 'exit'、'quit' 或 '退出' 结束对话")
-    print("输入 '/debug on' 开启调试模式，输入 '/debug off' 关闭调试模式")
-    print("=" * 50)
-    
-    # 运行交互式对话（默认使用流式输出）
-    await interactive_chat()
+    # 如果有非选项参数，直接回答问题
+    if len(sys.argv) > 1 and not sys.argv[1].startswith('--'):
+        question = ' '.join(sys.argv[1:])
+        print("=== 电脑操作专家AI助手 ===")
+        print(f"您的问题：{question}")
+        await run_computer_expert_agent_stream(question)
+    else:
+        # 否则进入交互式对话
+        print("=== 电脑操作专家AI助手 ===")
+        print("功能：提供电脑操作指导、故障排除和软件安装配置等服务")
+        print("注意：本助手仅支持Windows系统操作")
+        print("输入 'exit'、'quit' 或 '退出' 结束对话")
+        print("输入 '/debug on' 开启调试模式，输入 '/debug off' 关闭调试模式")
+        print("=" * 50)
+        
+        # 运行交互式对话（默认使用流式输出）
+        await interactive_chat()
 
 if __name__ == "__main__":
     try:

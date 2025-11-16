@@ -161,3 +161,5 @@ def show_windows_version() -> str:
         return f"Windows版本信息:\n" + "\n".join(version_info)
     except Exception as e:
         return f"获取Windows版本信息时出错: {str(e)}"
+
+

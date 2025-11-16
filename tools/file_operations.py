@@ -53,6 +53,39 @@ def delete_folder(folder_path: str, recursive: bool = False) -> str:
             return f"文件夹 '{folder_path}' 不为空，请使用 recursive=True 参数递归删除所有内容"
         return f"删除文件夹时出错: {str(e)}"
 
+def delete_item(path: str, recursive: bool = False) -> str:
+    """通用删除函数，可以删除文件或文件夹
+    
+    参数:
+        path: 要删除的文件或文件夹路径
+        recursive: 是否递归删除文件夹（仅对文件夹有效，如果为True，则删除文件夹及其所有内容）
+    """
+    try:
+        if os.path.exists(path):
+            if os.path.isfile(path):
+                # 删除文件
+                os.remove(path)
+                return f"文件 '{path}' 已成功删除"
+            elif os.path.isdir(path):
+                # 删除文件夹
+                if recursive:
+                    shutil.rmtree(path)
+                    return f"文件夹 '{path}' 及其所有内容已成功删除"
+                else:
+                    try:
+                        os.rmdir(path)
+                        return f"空文件夹 '{path}' 已成功删除"
+                    except OSError as e:
+                        if "Directory not empty" in str(e):
+                            return f"文件夹 '{path}' 不为空，请使用 recursive=True 参数递归删除所有内容"
+                        raise
+            else:
+                return f"路径 '{path}' 不是有效的文件或文件夹"
+        else:
+            return f"路径 '{path}' 不存在"
+    except Exception as e:
+        return f"删除时出错: {str(e)}"
+
 def copy_file(source_path: str, destination_path: str) -> str:
     """复制文件
     
