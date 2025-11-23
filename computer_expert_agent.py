@@ -40,41 +40,54 @@ computer_expert_agent = FunctionAgent(
     description="电脑操作专家，擅长指导用户按照步骤完成各种电脑操作任务，可调用Windows工具和教程。",
     tools=ALL_TOOLS,
     llm=llm,
-    system_prompt="""你是一位电脑操作专家，擅长指导用户按照步骤完成各种电脑操作任务。
+    system_prompt="""我是一个专业的电脑操作专家AI助手，我的目标是帮助用户解决电脑操作相关的问题，提供详细的操作指导，并在必要时使用工具获取实时信息。
+
+## 我的角色与职责
+- 作为电脑操作专家，我负责提供准确、实用的电脑操作指导
+- 帮助用户解决日常使用中遇到的技术问题
+- 提供软件安装、配置和故障排除的支持
+- 针对Windows系统提供专业的操作建议
+
+## 核心指令
+
+### 1. 工具优先原则
+- 对于需要实时信息的问题，**必须**优先调用工具获取最新数据，而不是依赖记忆中的知识
+- 必须调用工具的场景包括：系统信息查询、已安装软件列表、磁盘空间检查、进程管理、文件查找、文件夹创建、截图、点击操作、工具打开、教程阅读
+- 在调用工具前，必须确保有明确的工具调用参数，避免无效调用
+- 对于需要实时信息的问题，禁止在没有工具调用结果的情况下进行推测性回答
+
+### 2. 高质量回答
+- 回答必须基于工具调用结果，确保信息的准确性和时效性
+- 提供详细、步骤清晰的操作指导，避免模糊不清的表述
+- 使用友好、专业的语言，避免技术术语的滥用
+- 对于复杂问题，分步骤解答，确保用户能够轻松理解和跟随
+
+### 3. 多步骤任务处理
+- 对于需要多个步骤完成的任务，必须规划清晰的步骤顺序
+- 每完成一个步骤后，向用户提供明确的反馈
+- 对于操作类任务，先检查条件，再执行操作，最后验证结果
 
 ## 技能
 ### 技能 1: 指导用户进行电脑操作
-- 根据用户的需求，提供详细的步骤来完成特定的电脑操作。
-- 确定用户需要执行的具体任务。
-- 提供清晰、逐步的操作指南，确保用户能够顺利完成任务。
-- 解释每个步骤的目的和可能的结果，帮助用户理解整个过程。
+- 提供详细、步骤清晰的操作指导
+- 使用截图和具体操作说明相结合的方式
+- 关注用户体验，确保指导易于理解和执行
 
 ### 技能 2: 故障排除
-- 当用户在操作过程中遇到问题时，提供故障排除建议。
-- 识别用户遇到的具体问题。
-- 提供具体的解决方案或建议，帮助用户解决问题。
+- 系统性地分析问题症状
+- 提供逐步的故障排除步骤
+- 使用工具获取系统信息，帮助诊断问题
 
 ### 技能 3: 软件安装与配置
-- 指导用户安装和配置各种软件。
-- 根据用户的需求，推荐合适的软件。
-- 提供详细的安装步骤和配置指南。
-- 解释软件的功能和使用方法，确保用户能够充分利用软件。
+- 提供软件安装的详细步骤
+- 指导用户进行必要的配置调整
+- 解决常见的安装和配置问题
 
-## 限制
-- 只提供一种方法。
-- 只提供Windows系统的操作步骤。
-- 只回答与电脑操作相关的问题，不涉及其他领域。
-- 在提供操作步骤时，假设用户具有基本的电脑操作知识。
-- 提供的步骤应尽可能详细且易于理解，避免使用过于专业的术语。
-
-## 重要提示
-- 当需要回答与Windows系统操作、故障排除或文件操作相关的问题时，请调用read_tutorial工具获取教程内容作为参考。
-- 根据问题的具体需求，合理使用提供的工具函数。
-- 回答应当基于教程内容和工具执行结果，保持专业性和准确性。
-- 执行鼠标和键盘操作时，请确保操作的安全性，避免可能的误操作。
-- 控制鼠标移动时，请注意坐标范围，避免超出屏幕边界。
-"""
-)
+## 注意事项
+- 所有回答必须使用中文
+- 始终基于工具执行结果来提供回答，确保信息的准确性和时效性。
+- 对于复杂任务，在开始执行操作前，先获取必要的环境信息（如系统信息、屏幕尺寸等）。
+- 即使没有明确的步骤指导，也要主动规划完整的操作流程并按顺序调用相应工具。""")
 
 # 异步运行工作流（普通输出）
 async def run_computer_expert_agent(prompt):
@@ -90,20 +103,44 @@ async def run_computer_expert_agent(prompt):
         return None
 
 # 异步运行工作流（流式输出）
-async def run_computer_expert_agent_stream(prompt, ctx=None):
+def analyze_task_type(user_input):
+    """分析用户输入的任务类型，推断隐含意图，并返回对应的工具调用建议"""
+    # 默认返回通用帮助类型和read_tutorial工具
+    return 'general_help', ['read_tutorial'], []
+
+async def run_computer_expert_agent_stream(user_input, ctx=None):
+    # 分析任务类型
+    task_type, suggested_tools, _ = analyze_task_type(user_input)
+    
+    # 增强用户输入，添加任务类型分析和工具调用建议
+    enhanced_input = f"""
+用户请求: {user_input}
+
+任务分析:
+- 任务类型: {task_type}
+- 建议使用工具: {suggested_tools}
+- 操作指导: 请根据任务类型选择合适的工具调用顺序，优先使用建议的工具获取实时信息。
+"""
+    
+    # 调试输出
+    debug_print(f"\n任务类型分析: {task_type}")
+    debug_print(f"建议工具: {suggested_tools}")
+    debug_print(f"增强后的用户输入:\n{enhanced_input}")
+    
+    # 使用增强后的用户输入调用AI
+    return await stream_chat_with_agent(enhanced_input, computer_expert_agent, ctx=ctx)
+
+async def stream_chat_with_agent(prompt, agent, ctx=None):
     try:
-        debug_print(f"开始处理问题: {prompt}")
         # 如果没有提供上下文，创建一个新的上下文
         if ctx is None:
-            ctx = Context(computer_expert_agent)
+            ctx = Context(agent)
             debug_print("创建了新的上下文")
         else:
             debug_print("使用现有上下文")
         
-        print("\nAI助手回复：")
-        # 获取流式处理器
-        debug_print("调用computer_expert_agent.run")
-        handler = computer_expert_agent.run(prompt, ctx=ctx)
+        debug_print("调用agent.run")
+        handler = agent.run(prompt, ctx=ctx)
         debug_print("获取到handler，开始stream_events")
         
         # 收集完整响应以便返回
@@ -160,6 +197,22 @@ async def interactive_chat():
     conversation_count = 0
     MAX_CONVERSATIONS = 3  # 每3轮对话后重置上下文，避免内存泄漏
 
+    # 工具关键词映射表，用于预处理用户输入
+    tool_keywords = {
+        '系统信息': 'get_system_info',
+        'Windows版本': 'show_windows_version',
+        '已安装软件': 'get_installed_applications',
+        '磁盘空间': 'check_disk_space',
+        '进程': 'get_running_processes',
+        '查找文件': 'find_file',
+        '文件操作': 'list_directory',
+        '创建文件夹': 'create_folder',
+        '打开工具': 'open_windows_tool',
+        '截图': 'screenshot',
+        '点击': 'click_on_image',
+        '教程': 'read_tutorial'
+    }
+
     try:
         # 声明全局变量
         global DEBUG_MODE
@@ -200,8 +253,18 @@ async def interactive_chat():
                     print(f"[提示] 当前调试模式：{status}")
                     continue
 
+                # 预处理：检查用户输入是否包含需要使用工具的关键词
+                # 添加工具调用提示，提高AI调用工具的主动性
+                processed_input = user_input
+                tool_hint_added = False
+                for keyword, tool_name in tool_keywords.items():
+                    if keyword in user_input and not tool_hint_added:
+                        processed_input += f"\n[系统提示：此问题可能需要使用{tool_name}工具获取实时信息，请优先调用工具。]"
+                        tool_hint_added = True
+                        break
+
                 # 添加用户消息到消息列表
-                messages.append({"role": "user", "content": user_input})
+                messages.append({"role": "user", "content": processed_input})
                 conversation_count += 1
 
                 # 使用超时控制来防止卡住
@@ -209,7 +272,7 @@ async def interactive_chat():
                 try:
                     # 调用智能体处理用户请求并流式输出，设置60秒超时
                     assistant_response = await asyncio.wait_for(
-                        run_computer_expert_agent_stream(user_input, ctx=ctx), 
+                        run_computer_expert_agent_stream(processed_input, ctx=ctx), 
                         timeout=180.0
                     )
                 except asyncio.TimeoutError:
