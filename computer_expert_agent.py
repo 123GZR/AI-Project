@@ -108,7 +108,7 @@ def analyze_task_type(user_input):
     # 默认返回通用帮助类型和read_tutorial工具
     return 'general_help', ['read_tutorial'], []
 
-async def run_computer_expert_agent_stream(user_input, ctx=None):
+async def run_computer_expert_agent_stream(user_input, ctx=None, callback=None):
     # 分析任务类型
     task_type, suggested_tools, _ = analyze_task_type(user_input)
     
@@ -128,9 +128,9 @@ async def run_computer_expert_agent_stream(user_input, ctx=None):
     debug_print(f"增强后的用户输入:\n{enhanced_input}")
     
     # 使用增强后的用户输入调用AI
-    return await stream_chat_with_agent(enhanced_input, computer_expert_agent, ctx=ctx)
+    return await stream_chat_with_agent(enhanced_input, computer_expert_agent, ctx=ctx, callback=callback)
 
-async def stream_chat_with_agent(prompt, agent, ctx=None):
+async def stream_chat_with_agent(prompt, agent, ctx=None, callback=None):
     try:
         # 如果没有提供上下文，创建一个新的上下文
         if ctx is None:
@@ -159,6 +159,9 @@ async def stream_chat_with_agent(prompt, agent, ctx=None):
                     # 实时打印每个token
                     print(event.delta, end="", flush=True)
                     full_response += event.delta
+                    # 调用回调函数（如果提供）
+                    if callback:
+                        callback(event.delta)
                     # 每10个事件强制刷新一次
                     if event_count % 10 == 0:
                         debug_print(f"已处理 {event_count} 个事件")
@@ -167,10 +170,16 @@ async def stream_chat_with_agent(prompt, agent, ctx=None):
                     message_content = event.message
                     print(message_content, end="", flush=True)
                     full_response += message_content
+                    # 调用回调函数（如果提供）
+                    if callback:
+                        callback(message_content)
                 elif hasattr(event, 'content'):
                     # 处理包含content属性的事件
                     print(event.content, end="", flush=True)
                     full_response += event.content
+                    # 调用回调函数（如果提供）
+                    if callback:
+                        callback(event.content)
         except asyncio.TimeoutError:
             debug_print("流式处理超时")
         except StopAsyncIteration:
