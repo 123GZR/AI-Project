@@ -15,7 +15,7 @@ from tools.windows_tools import (
     show_windows_version
 )
 
-from tools.installed_applications_tool import get_installed_applications
+from tools.installed_applications_tool import get_installed_applications, open_application
 
 from tools.file_operations import (
     create_folder,
@@ -72,6 +72,7 @@ ALL_TOOLS = [
     find_file,
     show_windows_version,
     get_installed_applications,
+    open_application,
     
     # 文件操作工具
     create_folder,
@@ -123,7 +124,8 @@ WINDOWS_TOOLS = [
     check_disk_space,
     find_file,
     show_windows_version,
-    get_installed_applications
+    get_installed_applications,
+    open_application
 ]
 
 FILE_OPERATION_TOOLS = [
@@ -185,6 +187,7 @@ __all__ = [
     'find_file',
     'show_windows_version',
     'get_installed_applications',
+    'open_application',
     'create_folder',
     'delete_file',
     'delete_item',

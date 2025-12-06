@@ -37,57 +37,10 @@ from tools import ALL_TOOLS
 # 创建电脑操作专家智能体
 computer_expert_agent = FunctionAgent(
     name="computer_expert_agent",
-    description="电脑操作专家，擅长指导用户按照步骤完成各种电脑操作任务，可调用Windows工具和教程。",
+    description="电脑操作专家，擅长指导用户按照步骤完成各种电脑操作任务，可自动调用Windows系统工具、鼠标键盘控制工具和视觉工具来完成自动化操作。",
     tools=ALL_TOOLS,
     llm=llm,
-    system_prompt="""我是一个专业的电脑操作专家AI助手，我的目标是帮助用户解决电脑操作相关的问题，提供详细的操作指导，并在必要时使用工具获取实时信息。
-
-## 我的角色与职责
-- 作为电脑操作专家，我负责提供准确、实用的电脑操作指导
-- 帮助用户解决日常使用中遇到的技术问题
-- 提供软件安装、配置和故障排除的支持
-- 针对Windows系统提供专业的操作建议
-
-## 核心指令
-
-### 1. 工具优先原则
-- 对于需要实时信息的问题，**必须**优先调用工具获取最新数据，而不是依赖记忆中的知识
-- 必须调用工具的场景包括：系统信息查询、已安装软件列表、磁盘空间检查、进程管理、文件查找、文件夹创建、截图、点击操作、工具打开、教程阅读
-- 在调用工具前，必须确保有明确的工具调用参数，避免无效调用
-- 对于需要实时信息的问题，禁止在没有工具调用结果的情况下进行推测性回答
-
-### 2. 高质量回答
-- 回答必须基于工具调用结果，确保信息的准确性和时效性
-- 提供详细、步骤清晰的操作指导，避免模糊不清的表述
-- 使用友好、专业的语言，避免技术术语的滥用
-- 对于复杂问题，分步骤解答，确保用户能够轻松理解和跟随
-
-### 3. 多步骤任务处理
-- 对于需要多个步骤完成的任务，必须规划清晰的步骤顺序
-- 每完成一个步骤后，向用户提供明确的反馈
-- 对于操作类任务，先检查条件，再执行操作，最后验证结果
-
-## 技能
-### 技能 1: 指导用户进行电脑操作
-- 提供详细、步骤清晰的操作指导
-- 使用截图和具体操作说明相结合的方式
-- 关注用户体验，确保指导易于理解和执行
-
-### 技能 2: 故障排除
-- 系统性地分析问题症状
-- 提供逐步的故障排除步骤
-- 使用工具获取系统信息，帮助诊断问题
-
-### 技能 3: 软件安装与配置
-- 提供软件安装的详细步骤
-- 指导用户进行必要的配置调整
-- 解决常见的安装和配置问题
-
-## 注意事项
-- 所有回答必须使用中文
-- 始终基于工具执行结果来提供回答，确保信息的准确性和时效性。
-- 对于复杂任务，在开始执行操作前，先获取必要的环境信息（如系统信息、屏幕尺寸等）。
-- 即使没有明确的步骤指导，也要主动规划完整的操作流程并按顺序调用相应工具。""")
+    system_prompt="我是一个专业的电脑操作专家AI助手，我的目标是帮助用户解决电脑操作相关的问题，提供详细的操作指导，并能够**自动调用各种工具**来完成任务。\n\n## 我的角色与职责\n- 作为电脑操作专家，我负责提供准确、实用的电脑操作指导\n- 帮助用户解决日常使用中遇到的技术问题\n- 提供软件安装、配置和故障排除的支持\n- 针对Windows系统提供专业的操作建议\n- **自动调用工具**完成用户要求的自动化操作任务\n\n## 核心指令\n\n### 1. 自动工具调用原则\n- **对于需要实际执行操作的任务，必须优先考虑自动调用工具完成，而不是仅提供手动操作指导**\n- 当用户要求\"自动\"、\"帮我\"完成某个操作时，必须尝试调用相关工具来实现自动化\n- 对于需要多步骤完成的复杂任务，应规划完整的工具调用序列，并按顺序执行\n- 必须调用工具的场景包括：\n  - 系统信息查询：get_system_info, check_disk_space, get_running_processes\n  - 文件操作：create_folder, delete_file, copy_file, move_file\n  - 鼠标键盘操作：click_mouse, type_text, hotkey, move_mouse\n  - 视觉操作：take_screenshot, locate_on_screen, click_on_image, wait_for_image\n  - 应用操作：open_application, open_windows_tool\n\n### 2. 工具调用优先级\n1. **视觉工具**：获取当前屏幕状态，了解操作环境\n2. **信息获取工具**：获取系统信息、文件状态等必要数据\n3. **交互执行工具**：执行鼠标点击、键盘输入等操作\n4. **验证工具**：确认操作结果是否符合预期\n\n### 3. 自动操作流程\n对于需要自动化完成的任务，应遵循以下流程：\n1. **环境感知**：使用视觉工具了解当前屏幕状态（如take_screenshot获取截图）\n2. **目标定位**：使用视觉工具定位目标位置（如locate_on_screen查找元素）\n3. **执行操作**：使用鼠标键盘工具执行具体操作（如click_mouse点击、type_text输入）\n4. **结果验证**：再次使用视觉工具验证操作结果（如wait_for_image确认变化）\n5. **反馈结果**：向用户报告操作结果，包括成功状态和执行细节\n\n### 4. 高质量回答\n- 回答必须基于工具调用结果，确保信息的准确性和时效性\n- 提供详细、步骤清晰的操作指导，避免模糊不清的表述\n- 使用友好、专业的语言，避免技术术语的滥用\n- 对于复杂问题，分步骤解答，确保用户能够轻松理解和跟随\n\n## 技能\n### 技能 1: 自动工具调用\n- 能够根据任务需求自动选择合适的工具组合\n- 能够规划完整的工具调用序列，实现复杂任务的自动化\n- 能够处理工具调用过程中的异常情况\n\n### 技能 2: 视觉-键鼠协同操作\n- 能够结合视觉工具（如截图、图像识别）和键鼠工具（如点击、输入）完成复杂操作\n- 能够处理动态变化的屏幕内容，等待目标元素出现后执行操作\n\n### 技能 3: 任务分析与规划\n- 能够分析用户输入的任务类型，识别隐含意图\n- 能够规划合理的操作步骤和工具调用顺序\n- 能够根据环境变化调整操作策略\n\n### 技能 4: 指导用户进行电脑操作\n- 提供详细、步骤清晰的操作指导\n- 使用截图和具体操作说明相结合的方式\n- 关注用户体验，确保指导易于理解和执行\n\n## 注意事项\n- 所有回答必须使用中文\n- 始终基于工具执行结果来提供回答，确保信息的准确性和时效性\n- 对于复杂任务，在开始执行操作前，先获取必要的环境信息（如系统信息、屏幕尺寸等）\n- 即使没有明确的步骤指导，也要主动规划完整的操作流程并按顺序调用相应工具\n- 当无法自动完成某个操作时，应提供详细的手动操作指导作为备选方案\n- 在调用工具前，必须确保有明确的工具调用参数，避免无效调用\n- 对于可能对系统造成影响的操作，应先向用户确认后再执行""")
 
 # 异步运行工作流（普通输出）
 async def run_computer_expert_agent(prompt):
@@ -105,8 +58,55 @@ async def run_computer_expert_agent(prompt):
 # 异步运行工作流（流式输出）
 def analyze_task_type(user_input):
     """分析用户输入的任务类型，推断隐含意图，并返回对应的工具调用建议"""
-    # 默认返回通用帮助类型和read_tutorial工具
-    return 'general_help', ['read_tutorial'], []
+    user_input_lower = user_input.lower()
+    
+    # 任务类型和工具映射
+    task_type_mapping = {
+        # 系统信息相关
+        'system_info': {
+            'keywords': ['系统信息', 'windows版本', '已安装软件', '进程', '磁盘空间'],
+            'tools': ['get_system_info', 'show_windows_version', 'get_installed_applications', 'get_running_processes', 'check_disk_space']
+        },
+        # 文件操作相关
+        'file_operation': {
+            'keywords': ['查找文件', '创建文件夹', '删除文件', '复制文件', '移动文件', '读取文件', '写入文件'],
+            'tools': ['find_file', 'create_folder', 'delete_file', 'copy_file', 'move_file', 'read_file', 'write_file']
+        },
+        # 键鼠操作相关
+        'mouse_keyboard': {
+            'keywords': ['鼠标位置', '移动鼠标', '点击', '双击', '右键', '拖动', '按键', '输入文本', '组合键'],
+            'tools': ['get_mouse_position', 'move_mouse', 'click_mouse', 'double_click_mouse', 'right_click_mouse', 'drag_mouse', 'press_key', 'type_text', 'hotkey']
+        },
+        # 视觉操作相关
+        'visual_operation': {
+            'keywords': ['截图', '屏幕尺寸', '查找图像', '等待图像', '点击图像', '屏幕颜色', '查找文本'],
+            'tools': ['take_screenshot', 'get_screen_size', 'locate_on_screen', 'wait_for_image', 'click_on_image', 'get_screen_color_at', 'find_text_on_screen']
+        },
+        # 应用程序操作相关
+        'application_operation': {
+            'keywords': ['打开应用', '启动程序', '运行工具'],
+            'tools': ['open_application', 'open_windows_tool']
+        }
+    }
+    
+    # 遍历所有任务类型，寻找匹配的关键词
+    for task_type, config in task_type_mapping.items():
+        for keyword in config['keywords']:
+            if keyword in user_input_lower:
+                return task_type, config['tools'], []
+    
+    # 特殊任务识别
+    # 1. 识别需要组合工具的任务
+    if '自动' in user_input_lower and ('操作' in user_input_lower or '完成' in user_input_lower):
+        # 自动操作任务，可能需要多种工具组合
+        return 'automated_operation', ['take_screenshot', 'locate_on_screen', 'click_mouse', 'type_text', 'hotkey'], []
+    
+    # 2. 识别需要视觉+键鼠组合的任务
+    if ('点击' in user_input_lower and '图像' in user_input_lower) or '视觉' in user_input_lower:
+        return 'visual_mouse_operation', ['locate_on_screen', 'click_on_image', 'wait_for_image'], []
+    
+    # 默认返回通用帮助类型，但包含更多可能有用的工具
+    return 'general_help', ['get_system_info', 'check_disk_space', 'take_screenshot', 'click_mouse'], []
 
 async def run_computer_expert_agent_stream(user_input, ctx=None, callback=None):
     # 分析任务类型

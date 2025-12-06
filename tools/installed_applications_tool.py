@@ -1,5 +1,6 @@
 import subprocess
 import winreg
+import os
 from datetime import datetime
 from typing import List, Dict
 
@@ -22,6 +23,31 @@ def get_installed_applications(max_count: int = 500, sort_by: str = 'install_dat
             r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
             r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
         ]
+        
+        # 先获取App Paths中的应用路径信息
+        app_paths_dict = {}
+        try:
+            app_paths_key = r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, app_paths_key) as key:
+                index = 0
+                while True:
+                    try:
+                        subkey_name = winreg.EnumKey(key, index)
+                        index += 1
+                        
+                        try:
+                            with winreg.OpenKey(key, subkey_name) as subkey:
+                                app_path = winreg.QueryValue(subkey, None)
+                                if app_path and os.path.exists(app_path):
+                                    # 使用应用名称作为键，用于后续匹配
+                                    app_name = os.path.splitext(subkey_name)[0]
+                                    app_paths_dict[app_name.lower()] = app_path
+                        except Exception:
+                            continue
+                    except OSError:
+                        break
+        except Exception:
+            pass
         
         for registry_path in registry_paths:
             try:
@@ -56,6 +82,8 @@ def get_installed_applications(max_count: int = 500, sort_by: str = 'install_dat
                                         if install_date_str and len(install_date_str) == 8:
                                             date_obj = datetime.strptime(install_date_str, '%Y%m%d')
                                             install_date = date_obj.strftime('%Y-%m-%d')
+                                        elif install_date_str:
+                                            install_date = install_date_str
                                     except (FileNotFoundError, ValueError):
                                         pass
                                     
@@ -65,12 +93,45 @@ def get_installed_applications(max_count: int = 500, sort_by: str = 'install_dat
                                     except FileNotFoundError:
                                         pass
                                     
+                                    # 获取应用路径
+                                    app_path = "未知"
+                                    try:
+                                        # 尝试从Uninstall键获取路径
+                                        if "InstallLocation" in [winreg.EnumValue(subkey, i)[0] for i in range(winreg.QueryInfoKey(subkey)[1])]:
+                                            install_location = winreg.QueryValueEx(subkey, "InstallLocation")[0]
+                                            if install_location and os.path.exists(install_location):
+                                                # 尝试从安装目录查找可执行文件
+                                                for file in os.listdir(install_location):
+                                                    if file.endswith(".exe") and name.lower() in file.lower():
+                                                        app_path = os.path.join(install_location, file)
+                                                        break
+                                        
+                                        # 如果没找到，尝试从DisplayIcon获取
+                                        if app_path == "未知" and "DisplayIcon" in [winreg.EnumValue(subkey, i)[0] for i in range(winreg.QueryInfoKey(subkey)[1])]:
+                                            display_icon = winreg.QueryValueEx(subkey, "DisplayIcon")[0]
+                                            if display_icon:
+                                                # DisplayIcon可能是可执行文件路径或"路径,索引"格式
+                                                if "," in display_icon:
+                                                    display_icon = display_icon.split(",")[0]
+                                                if os.path.exists(display_icon):
+                                                    app_path = display_icon
+                                        
+                                        # 如果没找到，尝试从App Paths字典匹配
+                                        if app_path == "未知":
+                                            for app_name_key in app_paths_dict:
+                                                if app_name_key in name.lower():
+                                                    app_path = app_paths_dict[app_name_key]
+                                                    break
+                                    except Exception:
+                                        pass
+                                    
                                     # 添加到应用列表
                                     applications.append({
                                         'name': name,
                                         'version': version or "未知",
                                         'install_date': install_date,
-                                        'vendor': vendor or "未知"
+                                        'vendor': vendor or "未知",
+                                        'path': app_path
                                     })
                                 except Exception:
                                     # 跳过无法读取的子键
@@ -112,6 +173,13 @@ def get_installed_applications(max_count: int = 500, sort_by: str = 'install_dat
                         except:
                             pass
                     
+                    # 获取应用路径
+                    app_path = "未知"
+                    for app_name_key in app_paths_dict:
+                        if app_name_key in name.lower():
+                            app_path = app_paths_dict[app_name_key]
+                            break
+                    
                     # 检查是否已存在相同名称的应用
                     existing_app = None
                     for app in applications:
@@ -127,13 +195,16 @@ def get_installed_applications(max_count: int = 500, sort_by: str = 'install_dat
                             existing_app['install_date'] = formatted_date
                         if vendor and existing_app['vendor'] == "未知":
                             existing_app['vendor'] = vendor
+                        if app_path != "未知" and existing_app['path'] == "未知":
+                            existing_app['path'] = app_path
                     else:
                         # 添加新应用
                         applications.append({
                             'name': name,
                             'version': version or "未知",
                             'install_date': formatted_date,
-                            'vendor': vendor or "未知"
+                            'vendor': vendor or "未知",
+                            'path': app_path
                         })
         except Exception:
             # 跳过wmic获取失败的情况
@@ -163,11 +234,120 @@ def get_installed_applications(max_count: int = 500, sort_by: str = 'install_dat
             output += f"  版本: {app['version']}\n"
             output += f"  安装日期: {app['install_date']}\n"
             output += f"  开发商: {app['vendor']}\n"
+            output += f"  路径: {app['path']}\n"
         
         return output
     except Exception as e:
         return f"获取已安装应用程序时出错: {str(e)}"
 
+def open_application(app_name: str) -> str:
+    """
+    根据应用名称打开应用程序
+    
+    参数:
+        app_name: 应用程序的名称
+    
+    返回:
+        操作结果的字符串
+    """
+    try:
+        # 注册表路径
+        registry_paths = [
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths"
+        ]
+        
+        # 先尝试从App Paths查找（更直接）
+        app_path = None
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, registry_paths[2]) as key:
+            index = 0
+            while True:
+                try:
+                    subkey_name = winreg.EnumKey(key, index)
+                    index += 1
+                    
+                    # 检查子键名称是否包含应用名称
+                    if app_name.lower() in subkey_name.lower():
+                        try:
+                            with winreg.OpenKey(key, subkey_name) as subkey:
+                                app_path = winreg.QueryValue(subkey, None)
+                                if app_path and os.path.exists(app_path):
+                                    break
+                        except Exception:
+                            continue
+                except OSError:
+                    break
+        
+        # 如果从App Paths没有找到，尝试从Uninstall路径查找
+        if not app_path:
+            for registry_path in registry_paths[:2]:
+                try:
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, registry_path) as key:
+                        index = 0
+                        while True:
+                            try:
+                                subkey_name = winreg.EnumKey(key, index)
+                                index += 1
+                                
+                                try:
+                                    with winreg.OpenKey(key, subkey_name) as subkey:
+                                        # 读取应用名称
+                                        display_name = winreg.QueryValueEx(subkey, "DisplayName")[0] if "DisplayName" in [winreg.EnumValue(subkey, i)[0] for i in range(winreg.QueryInfoKey(subkey)[1])] else ""
+                                        
+                                        # 检查应用名称是否匹配
+                                        if display_name and app_name.lower() in display_name.lower():
+                                            # 尝试读取可执行文件路径
+                                            if "InstallLocation" in [winreg.EnumValue(subkey, i)[0] for i in range(winreg.QueryInfoKey(subkey)[1])]:
+                                                install_location = winreg.QueryValueEx(subkey, "InstallLocation")[0]
+                                                if install_location and os.path.exists(install_location):
+                                                    # 尝试查找可执行文件
+                                                    for file in os.listdir(install_location):
+                                                        if file.endswith(".exe") and app_name.lower() in file.lower():
+                                                            app_path = os.path.join(install_location, file)
+                                                            break
+                                            
+                                            if not app_path and "DisplayIcon" in [winreg.EnumValue(subkey, i)[0] for i in range(winreg.QueryInfoKey(subkey)[1])]:
+                                                display_icon = winreg.QueryValueEx(subkey, "DisplayIcon")[0]
+                                                if display_icon:
+                                                    # DisplayIcon可能是可执行文件路径或"路径,索引"格式
+                                                    if "," in display_icon:
+                                                        display_icon = display_icon.split(",")[0]
+                                                    if os.path.exists(display_icon):
+                                                        app_path = display_icon
+                                                        break
+                                            
+                                            if app_path:
+                                                break
+                                except Exception:
+                                    continue
+                            except OSError:
+                                break
+                    
+                    if app_path:
+                        break
+                except Exception:
+                    continue
+        
+        # 如果找到了应用路径，尝试打开它
+        if app_path:
+            try:
+                subprocess.Popen([app_path], shell=True)
+                return f"成功打开应用程序: {app_name}"
+            except Exception as e:
+                return f"打开应用程序失败: {str(e)}"
+        else:
+            # 尝试使用start命令打开（适用于系统应用）
+            try:
+                subprocess.Popen(["start", app_name], shell=True)
+                return f"尝试使用系统命令打开应用程序: {app_name}"
+            except Exception as e:
+                return f"未找到应用程序: {app_name}, 或无法打开它: {str(e)}"
+    except Exception as e:
+        return f"执行打开应用程序操作时出错: {str(e)}"
+
 if __name__ == "__main__":
     # 测试函数
     print(get_installed_applications(max_count=20))
+    # 测试打开应用
+    # print(open_application("记事本"))
