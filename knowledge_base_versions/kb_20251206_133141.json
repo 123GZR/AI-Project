@@ -1,0 +1,77 @@
+{
+  "metadata": {
+    "name": "AI助手知识库",
+    "description": "结构化知识库，包含领域专业知识、任务执行流程、常见问题解决方案和最佳实践案例",
+    "version": "1.0.0",
+    "last_updated": "2025-12-06T13:31:41.812557",
+    "created_at": "2025-12-06T13:30:12.669303"
+  },
+  "categories": [
+    {
+      "id": "1",
+      "name": "领域专业知识",
+      "description": "电脑操作相关的专业知识"
+    },
+    {
+      "id": "2",
+      "name": "任务执行流程",
+      "description": "各种任务的标准执行流程"
+    },
+    {
+      "id": "3",
+      "name": "常见问题解决方案",
+      "description": "常见问题的解决方法"
+    },
+    {
+      "id": "4",
+      "name": "最佳实践案例",
+      "description": "最佳实践和成功案例"
+    }
+  ],
+  "tags": [
+    {
+      "id": "1",
+      "name": "Windows",
+      "description": "Windows系统相关"
+    },
+    {
+      "id": "2",
+      "name": "文件操作",
+      "description": "文件和文件夹操作"
+    },
+    {
+      "id": "3",
+      "name": "系统设置",
+      "description": "系统设置和配置"
+    },
+    {
+      "id": "4",
+      "name": "故障排除",
+      "description": "故障诊断和修复"
+    },
+    {
+      "id": "5",
+      "name": "工具使用",
+      "description": "工具和软件使用"
+    }
+  ],
+  "knowledge_items": [
+    {
+      "id": "0163ddc58e114cc9",
+      "title": "问题解决指引",
+      "content": "一般游览器默认为系统自带的Microsoft Edge游览器",
+      "category_id": "3",
+      "tags": [
+        "游览器"
+      ],
+      "type": "text",
+      "attachments": [],
+      "created_at": "2025-12-06T13:31:41.812536",
+      "updated_at": "2025-12-06T13:31:41.812539",
+      "views": 0,
+      "rating": 0,
+      "author": "system"
+    }
+  ],
+  "relations": []
+}
