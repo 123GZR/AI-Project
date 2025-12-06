@@ -5,7 +5,8 @@ import threading
 import os
 import json
 from datetime import datetime
-from computer_expert_agent import run_computer_expert_agent_stream, DEBUG_MODE
+from agent.workflow import run_computer_expert_agent_stream
+from agent.config import DEBUG_MODE
 from knowledge_base import knowledge_base
 from .title_bar import TitleBar
 from .tool_navigation import ToolNavigation
