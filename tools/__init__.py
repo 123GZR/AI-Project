@@ -12,7 +12,18 @@ from tools.windows_tools import (
     get_running_processes,
     check_disk_space,
     find_file,
-    show_windows_version
+    show_windows_version,
+    get_all_windows,
+    find_window_by_title,
+    get_window_info,
+    get_active_window,
+    monitor_window_changes,
+    get_window_z_order,
+    bring_window_to_front,
+    window_exists,
+    get_window_process_info,
+    close_window_by_hwnd,
+    close_window_by_title
 )
 
 from tools.installed_applications_tool import get_installed_applications, open_application
@@ -57,7 +68,29 @@ from tools.visual_tools import (
     capture_screen_region,
     find_text_on_screen,
     get_screen_color_at,
-    wait_for_color_change
+    wait_for_color_change,
+    # 高帧率屏幕捕获功能
+    get_monitors_info,
+    capture_screen_fast,
+    capture_screen_region_fast,
+    capture_screen_to_numpy,
+    capture_region_to_numpy,
+    benchmark_screen_capture,
+    # OCR文本识别功能
+    recognize_text_in_image,
+    recognize_text_in_screen,
+    recognize_text_in_region,
+    real_time_text_detection
+)
+
+# 从多窗口处理模块导入函数
+from tools.multi_window_processor import (
+    start_multi_window_processing,
+    stop_multi_window_processing,
+    get_window_content,
+    get_all_window_contents,
+    get_active_window_content,
+    get_window_processing_status
 )
 
 # 定义所有工具的集合
@@ -73,6 +106,18 @@ ALL_TOOLS = [
     show_windows_version,
     get_installed_applications,
     open_application,
+    # 窗口管理工具
+    get_all_windows,
+    find_window_by_title,
+    get_window_info,
+    get_active_window,
+    monitor_window_changes,
+    get_window_z_order,
+    bring_window_to_front,
+    window_exists,
+    get_window_process_info,
+    close_window_by_hwnd,
+    close_window_by_title,
     
     # 文件操作工具
     create_folder,
@@ -113,7 +158,24 @@ ALL_TOOLS = [
     capture_screen_region,
     find_text_on_screen,
     get_screen_color_at,
-    wait_for_color_change
+    wait_for_color_change,
+    # 高帧率屏幕捕获功能
+    get_monitors_info,
+    capture_screen_fast,
+    capture_screen_region_fast,
+    benchmark_screen_capture,
+    # OCR文本识别功能
+    recognize_text_in_image,
+    recognize_text_in_screen,
+    recognize_text_in_region,
+    real_time_text_detection,
+    # 多窗口处理功能
+    start_multi_window_processing,
+    stop_multi_window_processing,
+    get_window_content,
+    get_all_window_contents,
+    get_active_window_content,
+    get_window_processing_status
 ]
 
 # 按功能分类的工具集合
@@ -125,7 +187,26 @@ WINDOWS_TOOLS = [
     find_file,
     show_windows_version,
     get_installed_applications,
-    open_application
+    open_application,
+    # 窗口管理工具
+    get_all_windows,
+    find_window_by_title,
+    get_window_info,
+    get_active_window,
+    monitor_window_changes,
+    get_window_z_order,
+    bring_window_to_front,
+    window_exists,
+    get_window_process_info,
+    close_window_by_hwnd,
+    close_window_by_title,
+    # 多窗口处理功能
+    start_multi_window_processing,
+    stop_multi_window_processing,
+    get_window_content,
+    get_all_window_contents,
+    get_active_window_content,
+    get_window_processing_status
 ]
 
 FILE_OPERATION_TOOLS = [
@@ -168,7 +249,17 @@ VISUAL_TOOLS = [
     capture_screen_region,
     find_text_on_screen,
     get_screen_color_at,
-    wait_for_color_change
+    wait_for_color_change,
+    # 高帧率屏幕捕获功能
+    get_monitors_info,
+    capture_screen_fast,
+    capture_screen_region_fast,
+    benchmark_screen_capture,
+    # OCR文本识别功能
+    recognize_text_in_image,
+    recognize_text_in_screen,
+    recognize_text_in_region,
+    real_time_text_detection
 ]
 
 # 导出所有工具以便外部使用
@@ -188,6 +279,18 @@ __all__ = [
     'show_windows_version',
     'get_installed_applications',
     'open_application',
+    # 窗口管理工具
+    'get_all_windows',
+    'find_window_by_title',
+    'get_window_info',
+    'get_active_window',
+    'monitor_window_changes',
+    'get_window_z_order',
+    'bring_window_to_front',
+    'window_exists',
+    'get_window_process_info',
+    'close_window_by_hwnd',
+    'close_window_by_title',
     'create_folder',
     'delete_file',
     'delete_item',
@@ -221,5 +324,22 @@ __all__ = [
     'capture_screen_region',
     'find_text_on_screen',
     'get_screen_color_at',
-    'wait_for_color_change'
+    'wait_for_color_change',
+    # 高帧率屏幕捕获功能
+    'get_monitors_info',
+    'capture_screen_fast',
+    'capture_screen_region_fast',
+    'benchmark_screen_capture',
+    # OCR文本识别功能
+    'recognize_text_in_image',
+    'recognize_text_in_screen',
+    'recognize_text_in_region',
+    'real_time_text_detection',
+    # 多窗口处理功能
+    'start_multi_window_processing',
+    'stop_multi_window_processing',
+    'get_window_content',
+    'get_all_window_contents',
+    'get_active_window_content',
+    'get_window_processing_status'
 ]

@@ -1,7 +1,12 @@
 import os
 import subprocess
 import platform
-from typing import List, Optional
+import time
+from typing import List, Optional, Dict, Any
+import pygetwindow as gw
+import win32gui
+import win32process
+import win32con
 
 def get_system_info() -> str:
     """获取Windows系统的基本信息"""
@@ -161,5 +166,416 @@ def show_windows_version() -> str:
         return f"Windows版本信息:\n" + "\n".join(version_info)
     except Exception as e:
         return f"获取Windows版本信息时出错: {str(e)}"
+
+
+# 窗口管理功能
+
+def get_all_windows() -> Dict[str, Any]:
+    """获取所有窗口信息
+    
+    返回:
+        包含所有窗口信息的字典
+    """
+    try:
+        windows = gw.getAllWindows()
+        result = {}
+        
+        for i, window in enumerate(windows):
+            if window.visible:
+                try:
+                    result[f"window_{i}"] = {
+                        "title": window.title,
+                        "hwnd": window._hWnd,
+                        "x": window.left,
+                        "y": window.top,
+                        "width": window.width,
+                        "height": window.height,
+                        "visible": window.visible,
+                        "active": window.isActive,
+                        "z_order": i
+                    }
+                except Exception as e:
+                    continue
+        
+        return {
+            "status": "success",
+            "windows": result,
+            "total_windows": len(result)
+        }
+    except Exception as e:
+        return f"获取所有窗口信息时出错: {str(e)}"
+
+
+def find_window_by_title(title: str, exact_match: bool = False) -> Dict[str, Any]:
+    """根据标题查找窗口
+    
+    参数:
+        title: 窗口标题
+        exact_match: 是否精确匹配
+    
+    返回:
+        包含查找结果的字典
+    """
+    try:
+        if exact_match:
+            window = gw.getWindowsWithTitle(title)
+            window = [w for w in window if w.title == title]
+        else:
+            window = gw.getWindowsWithTitle(title)
+        
+        matches = []
+        for i, w in enumerate(window):
+            matches.append({
+                "title": w.title,
+                "hwnd": w._hWnd,
+                "x": w.left,
+                "y": w.top,
+                "width": w.width,
+                "height": w.height,
+                "visible": w.visible,
+                "active": w.isActive
+            })
+        
+        return {
+            "status": "success",
+            "matches": matches,
+            "total_matches": len(matches),
+            "search_title": title,
+            "exact_match": exact_match
+        }
+    except Exception as e:
+        return f"根据标题查找窗口时出错: {str(e)}"
+
+
+def get_window_info(hwnd: int) -> Dict[str, Any]:
+    """获取窗口详细信息
+    
+    参数:
+        hwnd: 窗口句柄
+    
+    返回:
+        包含窗口详细信息的字典
+    """
+    try:
+        window = gw.getWindowsWithHWND(hwnd)
+        if not window:
+            return f"未找到句柄为 {hwnd} 的窗口"
+        
+        window = window[0]
+        
+        # 获取进程ID
+        tid, pid = win32process.GetWindowThreadProcessId(hwnd)
+        
+        # 获取窗口类名
+        class_name = win32gui.GetClassName(hwnd)
+        
+        # 获取窗口样式
+        style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+        
+        return {
+            "status": "success",
+            "window_info": {
+                "title": window.title,
+                "hwnd": hwnd,
+                "pid": pid,
+                "tid": tid,
+                "class_name": class_name,
+                "style": style,
+                "x": window.left,
+                "y": window.top,
+                "width": window.width,
+                "height": window.height,
+                "visible": window.visible,
+                "active": window.isActive
+            }
+        }
+    except Exception as e:
+        return f"获取窗口详细信息时出错: {str(e)}"
+
+
+def get_active_window() -> Dict[str, Any]:
+    """获取当前活动窗口
+    
+    返回:
+        包含当前活动窗口信息的字典
+    """
+    try:
+        window = gw.getActiveWindow()
+        if not window:
+            return "当前没有活动窗口"
+        
+        return {
+            "status": "success",
+            "active_window": {
+                "title": window.title,
+                "hwnd": window._hWnd,
+                "x": window.left,
+                "y": window.top,
+                "width": window.width,
+                "height": window.height,
+                "visible": window.visible
+            }
+        }
+    except Exception as e:
+        return f"获取当前活动窗口时出错: {str(e)}"
+
+
+def monitor_window_changes(duration: float = 5.0, check_interval: float = 0.5) -> Dict[str, Any]:
+    """监控窗口状态变化
+    
+    参数:
+        duration: 监控持续时间（秒）
+        check_interval: 检查间隔（秒）
+    
+    返回:
+        包含监控结果的字典
+    """
+    try:
+        start_time = time.time()
+        initial_windows = get_all_windows()
+        if isinstance(initial_windows, str):
+            return initial_windows
+        
+        changes = []
+        window_history = {}
+        
+        # 初始化窗口历史
+        for win_id, win_info in initial_windows["windows"].items():
+            window_history[win_info["hwnd"]] = win_info
+        
+        while time.time() - start_time < duration:
+            current_windows = get_all_windows()
+            if isinstance(current_windows, str):
+                continue
+            
+            current_window_hwnds = set()
+            
+            # 检查现有窗口的变化
+            for win_id, win_info in current_windows["windows"].items():
+                hwnd = win_info["hwnd"]
+                current_window_hwnds.add(hwnd)
+                
+                if hwnd in window_history:
+                    # 检查窗口状态变化
+                    old_info = window_history[hwnd]
+                    
+                    # 检查位置变化
+                    if (win_info["x"] != old_info["x"] or win_info["y"] != old_info["y"]):
+                        changes.append({
+                            "type": "move",
+                            "hwnd": hwnd,
+                            "title": win_info["title"],
+                            "old_position": {"x": old_info["x"], "y": old_info["y"]},
+                            "new_position": {"x": win_info["x"], "y": win_info["y"]},
+                            "timestamp": time.time()
+                        })
+                    
+                    # 检查大小变化
+                    if (win_info["width"] != old_info["width"] or win_info["height"] != old_info["height"]):
+                        changes.append({
+                            "type": "resize",
+                            "hwnd": hwnd,
+                            "title": win_info["title"],
+                            "old_size": {"width": old_info["width"], "height": old_info["height"]},
+                            "new_size": {"width": win_info["width"], "height": win_info["height"]},
+                            "timestamp": time.time()
+                        })
+                    
+                    # 检查激活状态变化
+                    if (win_info["active"] != old_info["active"]):
+                        changes.append({
+                            "type": "activate" if win_info["active"] else "deactivate",
+                            "hwnd": hwnd,
+                            "title": win_info["title"],
+                            "timestamp": time.time()
+                        })
+                
+                # 更新窗口历史
+                window_history[hwnd] = win_info
+            
+            # 检查新创建的窗口
+            for hwnd in current_window_hwnds:
+                if hwnd not in window_history:
+                    changes.append({
+                        "type": "create",
+                        "hwnd": hwnd,
+                        "title": current_windows["windows"][f"window_{list(current_windows['windows'].keys()).index(win_id)}"]["title"],
+                        "timestamp": time.time()
+                    })
+            
+            # 检查关闭的窗口
+            for hwnd in list(window_history.keys()):
+                if hwnd not in current_window_hwnds:
+                    changes.append({
+                        "type": "close",
+                        "hwnd": hwnd,
+                        "title": window_history[hwnd]["title"],
+                        "timestamp": time.time()
+                    })
+                    del window_history[hwnd]
+            
+            time.sleep(check_interval)
+        
+        return {
+            "status": "success",
+            "changes": changes,
+            "total_changes": len(changes),
+            "monitor_duration": duration,
+            "check_interval": check_interval
+        }
+    except Exception as e:
+        return f"监控窗口状态变化时出错: {str(e)}"
+
+
+def get_window_z_order() -> Dict[str, Any]:
+    """获取窗口Z-order（堆叠顺序）
+    
+    返回:
+        包含窗口Z-order信息的字典
+    """
+    try:
+        def callback(hwnd, windows):
+            if win32gui.IsWindowVisible(hwnd):
+                title = win32gui.GetWindowText(hwnd)
+                if title:
+                    windows.append({
+                        "hwnd": hwnd,
+                        "title": title,
+                        "z_order": len(windows)
+                    })
+            return True
+        
+        windows = []
+        win32gui.EnumWindows(callback, windows)
+        
+        return {
+            "status": "success",
+            "windows_z_order": windows,
+            "total_windows": len(windows)
+        }
+    except Exception as e:
+        return f"获取窗口Z-order时出错: {str(e)}"
+
+
+def bring_window_to_front(hwnd: int) -> str:
+    """将窗口置顶
+    
+    参数:
+        hwnd: 窗口句柄
+    """
+    try:
+        win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+        win32gui.SetForegroundWindow(hwnd)
+        return f"已将句柄为 {hwnd} 的窗口置顶"
+    except Exception as e:
+        return f"将窗口置顶时出错: {str(e)}"
+
+
+def window_exists(hwnd: int) -> Dict[str, Any]:
+    """检查窗口是否存在
+    
+    参数:
+        hwnd: 窗口句柄
+    
+    返回:
+        包含检查结果的字典
+    """
+    try:
+        exists = win32gui.IsWindow(hwnd)
+        return {
+            "status": "success",
+            "exists": exists,
+            "hwnd": hwnd
+        }
+    except Exception as e:
+        return f"检查窗口是否存在时出错: {str(e)}"
+
+
+def get_window_process_info(hwnd: int) -> Dict[str, Any]:
+    """获取窗口所属进程信息
+    
+    参数:
+        hwnd: 窗口句柄
+    
+    返回:
+        包含进程信息的字典
+    """
+    try:
+        tid, pid = win32process.GetWindowThreadProcessId(hwnd)
+        
+        # 获取进程名
+        try:
+            import psutil
+            process = psutil.Process(pid)
+            process_name = process.name()
+            process_path = process.exe()
+            process_cmdline = " ".join(process.cmdline())
+        except Exception as e:
+            process_name = "未知"
+            process_path = "未知"
+            process_cmdline = "未知"
+        
+        return {
+            "status": "success",
+            "process_info": {
+                "hwnd": hwnd,
+                "pid": pid,
+                "tid": tid,
+                "process_name": process_name,
+                "process_path": process_path,
+                "process_cmdline": process_cmdline
+            }
+        }
+    except Exception as e:
+        return f"获取窗口所属进程信息时出错: {str(e)}"
+
+
+def close_window_by_hwnd(hwnd: int) -> str:
+    """通过窗口句柄关闭窗口
+    
+    参数:
+        hwnd: 窗口句柄
+    """
+    try:
+        # 检查窗口是否存在
+        if not win32gui.IsWindow(hwnd):
+            return f"窗口句柄 {hwnd} 无效或窗口已关闭"
+        
+        # 发送关闭消息
+        win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+        return f"已向窗口句柄 {hwnd} 发送关闭消息"
+    except Exception as e:
+        return f"关闭窗口时出错: {str(e)}"
+
+
+def close_window_by_title(title: str, exact_match: bool = False) -> str:
+    """通过标题关闭窗口
+    
+    参数:
+        title: 窗口标题
+        exact_match: 是否精确匹配
+    """
+    try:
+        # 查找匹配的窗口
+        from .__init__ import find_window_by_title
+        result = find_window_by_title(title, exact_match)
+        
+        if isinstance(result, str):
+            return result
+        
+        matches = result.get("matches", [])
+        if not matches:
+            return f"未找到标题包含 '{title}' 的窗口"
+        
+        # 关闭所有匹配的窗口
+        closed_count = 0
+        for match in matches:
+            hwnd = match["hwnd"]
+            win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+            closed_count += 1
+        
+        return f"已成功关闭 {closed_count} 个标题{'精确' if exact_match else '包含'} '{title}' 的窗口"
+    except Exception as e:
+        return f"通过标题关闭窗口时出错: {str(e)}"
 
 
